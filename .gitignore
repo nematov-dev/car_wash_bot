@@ -1,0 +1,54 @@
+# Python
+
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pycache/
+*.egg-info/
+*.egg
+*.venv/
+venv/
+env/
+ENV/
+
+# IDE / Editor
+
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# Local database
+
+*.db
+*.sqlite3
+
+# Logs
+
+*.log
+logs/
+
+# Environment / Secrets
+
+.env
+.env.*
+
+# OS files
+
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Testing / Coverage
+
+.pytest_cache/
+coverage/
+htmlcov/
+
+# Migrations
+migrations/
+
+# Telegram bot session files
+*.session
+*.session-journal
