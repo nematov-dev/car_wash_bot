@@ -28,6 +28,13 @@ user_cars = Table(
 )
 
 
+#  USER ROLE ENUM
+
+class UserRole(enum.Enum):
+    user = "user"
+    admin = "admin"
+
+
 # USERS
 
 class User(Base):
@@ -36,7 +43,13 @@ class User(Base):
     id = Column(Integer, primary_key=True)
     telegram_id = Column(BigInteger, unique=True, nullable=False)
     full_name = Column(String, nullable=True)
-    role = Column(String, default="user")  # admin / user
+
+    role = Column(
+        Enum(UserRole, name="user_role"),
+        default=UserRole.user,
+        nullable=False
+    )
+    
     created_at = Column(DateTime, default=datetime.utcnow)
 
     cars = relationship(
@@ -46,7 +59,6 @@ class User(Base):
     )
 
     orders = relationship("Order", back_populates="user")
-
 
 
 # CARS
@@ -70,6 +82,21 @@ class Car(Base):
     orders = relationship("Order", back_populates="car")
 
 
+# WASHERS
+
+class Washer(Base):
+    __tablename__ = "washers"
+
+    id = Column(Integer, primary_key=True)
+    telegram_id = Column(BigInteger, unique=True, nullable=True)
+    full_name = Column(String, nullable=True)
+    active = Column(Boolean, default=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    orders = relationship("Order", back_populates="washer")
+
+
 # ORDER STATUS ENUM
 
 class OrderStatus(enum.Enum):
@@ -87,8 +114,7 @@ class Order(Base):
 
     car_id = Column(Integer, ForeignKey("cars.id"), nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
-
-    washer_name = Column(String, nullable=True)
+    washer_id = Column(Integer, ForeignKey("washers.id"), nullable=True)
 
     status = Column(
         Enum(OrderStatus, name="order_status"),
@@ -104,6 +130,7 @@ class Order(Base):
 
     user = relationship("User", back_populates="orders")
     car = relationship("Car", back_populates="orders")
+    washer = relationship("Washer", back_populates="orders")
 
 
 # SERVICES
