@@ -4,6 +4,10 @@ from decouple import config
 
 BOT_TOKEN = config("BOT_TOKEN")
 
+# Admin Telegram ID
+
+ADMIN_TELEGRAM_ID = config("ADMIN_TELEGRAM_ID")
+
 # Database settings
 
 DB_USER = config("DB_USER")

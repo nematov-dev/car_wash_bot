@@ -49,7 +49,7 @@ class User(Base):
         default=UserRole.user,
         nullable=False
     )
-    
+
     created_at = Column(DateTime, default=datetime.utcnow)
 
     cars = relationship(
@@ -88,7 +88,6 @@ class Washer(Base):
     __tablename__ = "washers"
 
     id = Column(Integer, primary_key=True)
-    telegram_id = Column(BigInteger, unique=True, nullable=True)
     full_name = Column(String, nullable=True)
     active = Column(Boolean, default=True)
 
