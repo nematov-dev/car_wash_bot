@@ -1,20 +1,17 @@
 import asyncio
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
-from decouple import config
 
 from database.models import User
 from database.session import SessionLocal, init_db
 from keyboards.user_kb import get_main_user_menu
 from handlers.user import user_router
-
-
-BOT_TOKEN = config("BOT_TOKEN")
+import config
 
 
 # Bot & Dispatcher
 
-bot = Bot(token=BOT_TOKEN)
+bot = Bot(token=config.BOT_TOKEN)
 dp = Dispatcher()
 
 
@@ -64,7 +61,7 @@ async def start_handler(message: types.Message):
 async def main():
 
     # DB create
-    
+
     init_db()
     print("✅ Database tables created!")
 
