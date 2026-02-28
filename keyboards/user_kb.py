@@ -68,3 +68,22 @@ def get_confirm_delete_kb(car_id: int):
         ]
     )
     return keyboard
+
+
+
+def get_history_pagination_keyboard(car_id, current_page, total_pages):
+    buttons = []
+    
+    nav_row = []
+    if current_page > 1:
+        nav_row.append(InlineKeyboardButton(text="⬅️", callback_data=f"car_hist_{car_id}_{current_page-1}"))
+    
+    nav_row.append(InlineKeyboardButton(text=f"{current_page}/{total_pages}", callback_data="noop"))
+    
+    if current_page < total_pages:
+        nav_row.append(InlineKeyboardButton(text="➡️", callback_data=f"car_hist_{car_id}_{current_page+1}"))
+    
+    buttons.append(nav_row)
+    buttons.append([InlineKeyboardButton(text="🔄 Yangilash", callback_data=f"car_status_id_{car_id}")])
+    
+    return InlineKeyboardMarkup(inline_keyboard=buttons)

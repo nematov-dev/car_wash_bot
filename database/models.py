@@ -15,6 +15,9 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship, declarative_base
 
+from services.timezone import get_uzb_now
+
+
 Base = declarative_base()
 
 
@@ -50,7 +53,7 @@ class User(Base):
         nullable=False
     )
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=get_uzb_now)
 
     cars = relationship(
         "Car",
@@ -71,7 +74,7 @@ class Car(Base):
     brand = Column(String, nullable=True)
     color = Column(String, nullable=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=get_uzb_now)
 
     owners = relationship(
         "User",
@@ -91,7 +94,7 @@ class Washer(Base):
     full_name = Column(String, nullable=True)
     active = Column(Boolean, default=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=get_uzb_now)
 
     orders = relationship("Order", back_populates="washer")
 
@@ -121,10 +124,12 @@ class Order(Base):
         nullable=False
     )
 
+    services_name = Column(String, nullable=True)
+
     estimated_time = Column(DateTime, nullable=True)
     price = Column(Float, nullable=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=get_uzb_now)
     completed_at = Column(DateTime, nullable=True)
 
     user = relationship("User", back_populates="orders")
@@ -142,4 +147,4 @@ class Service(Base):
     price = Column(Float, nullable=False)
     active = Column(Boolean, default=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=get_uzb_now)

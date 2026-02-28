@@ -1,103 +1,259 @@
+import os, asyncio
+
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from loader import DBSession
-from database.models import Car, Washer, Order, OrderStatus, User, UserRole
+from database.models import Car, Washer, Order, OrderStatus
+from database.models import Service
+
+
+from states.states import ManualOrderStates, AudioOrderStates
 from keyboards.admin_kb import (
-    get_washers_inline_keyboard, 
-    get_admin_main_menu, 
-    get_order_management_keyboard
+    get_admin_main_menu,
+    admin_cancel_kb,
+    get_washers_reply_keyboard,
+    get_services_reply_keyboard,
+    get_skip_keyboard,
+    get_audio_confirm_keyboard,
 )
 from states.states import ManualOrderStates
+from services.speech_to_text import transcribe_audio_to_order
+from middlewares.admin_check import AdminCheckMiddleware
+
 
 admin_router = Router()
 
-# Admin panelga kirish
+admin_router.message.middleware(AdminCheckMiddleware())
+admin_router.callback_query.middleware(AdminCheckMiddleware())
+
+# Cancel handlers
+
+@admin_router.message(F.text == "🏠 Bosh sahifa" or F.text == "✖️ Bekor qilish")
+async def cancel_handler(message: Message, state: FSMContext):
+    current_state = await state.get_state()
+    if current_state is None:
+        await message.answer("Asosiy menyuga qaytdingiz:", reply_markup=get_admin_main_menu())
+        return
+
+    await state.clear()
+    await message.answer("Asosiy menyuga qaytdingiz:", reply_markup=get_admin_main_menu())
+
+# Callback query cancel handler
+
+@admin_router.callback_query(F.data == "cancel_admin")
+async def cancel_callback(callback: CallbackQuery, state: FSMContext):
+    await state.clear()
+    await callback.message.edit_text("Amal bekor qilindi.",reply_markup=get_admin_main_menu())
+    await callback.answer()
+
+# Admin panel main menu handler
+
 @admin_router.message(F.text == "⬅️ Admin panel")
 async def admin_panel_main(message: Message):
     await message.answer("Asosiy admin panel menyusi:", reply_markup=get_admin_main_menu())
 
-# Buyurtma qabul qilish bo'limi
-@admin_router.message(F.text == "📥 Buyurtma qabul qilish")
-async def order_menu(message: Message):
-    await message.answer("Buyurtma bo'limi:", reply_markup=get_order_management_keyboard())
+# Manual order process handlers
 
-# 1. Jarayonni boshlash (Qo'lda kiritish)
-@admin_router.message(F.text == "✍️ Qo'lda kiritish")
+@admin_router.message(F.text == "📥 Buyurtma qabul qilish (qo'lda)")
 async def manual_order_start(message: Message, state: FSMContext):
-    await message.answer("🚗 Mashina davlat raqamini kiriting:\n(Misol: 01A777AA)")
+
+    await message.answer("🚗 Mashina davlat raqamini kiriting (01A123AA):", reply_markup=admin_cancel_kb())
     await state.set_state(ManualOrderStates.waiting_for_plate)
 
-# 2. Raqamni qabul qilish va Mashinani bazadan tekshirish
+# Plate number handler
+
 @admin_router.message(ManualOrderStates.waiting_for_plate)
-async def process_plate_number(message: Message, state: FSMContext):
+async def process_plate(message: Message, state: FSMContext):
+
+    if message.text in ["🏠 Bosh sahifa", "✖️ Bekor qilish"]:
+        await cancel_handler(message, state)
+        return
+    
     plate = message.text.strip().upper()
+    await state.update_data(plate_number=plate)
     
     with DBSession() as db:
-        # Mashinani qidirish, bo'lmasa yaratish
-        car = db.query(Car).filter(Car.plate_number == plate).first()
-        if not car:
-            car = Car(plate_number=plate)
-            db.add(car)
-            db.commit()
-            db.refresh(car)
-        
-        # Faol moykachilarni olish
         washers = db.query(Washer).filter(Washer.active == True).all()
-        
-        if not washers:
-            await message.answer("⚠️ Faol moykachilar topilmadi! Avval ishchi qo'shing.")
-            await state.clear()
-            return
-
-        await state.update_data(car_id=car.id, plate_number=plate)
-        
-        await message.answer(
-            f"🚘 Mashina: {plate}\n\nKim yuvadi? Ishchini tanlang:",
-            reply_markup=get_washers_inline_keyboard(washers)
-        )
+        markup = get_washers_reply_keyboard(washers)
+        await message.answer(f"🚘 Mashina: {plate}\n\nXizmat ko'rsatuvchi? (Tugmadan tanlang yoki ismini yozing):", reply_markup=markup)
         await state.set_state(ManualOrderStates.selecting_washer)
 
-# 3. Moykachi tanlanganda Order yaratish
-@admin_router.callback_query(ManualOrderStates.selecting_washer, F.data.startswith("set_washer_"))
-async def finalize_manual_order(callback: CallbackQuery, state: FSMContext):
-    washer_id = int(callback.data.split("_")[2])
-    data = await state.get_data()
-    car_id = data.get('car_id')
-    plate = data.get('plate_number')
+# Washer selection handler
 
+@admin_router.message(ManualOrderStates.selecting_washer) 
+async def process_washer(message: Message, state: FSMContext):
+    if message.text in ["🏠 Bosh sahifa", "✖️ Bekor qilish"]:
+        await cancel_handler(message, state)
+        return
+
+    washer_name = message.text
+    await state.update_data(temp_washer=washer_name)
+    
     with DBSession() as db:
-        washer = db.query(Washer).get(washer_id)
+        services = db.query(Service).filter(Service.active == True).all()
         
-        # Yangi buyurtma yaratish
+        markup = get_services_reply_keyboard(services)
+        await message.answer(
+            "🛠 Xizmat turini tanlang yoki o'zingiz yozing:", 
+            reply_markup=markup
+        )
+    await state.set_state(ManualOrderStates.waiting_for_service)
+
+# Service selection handler
+
+@admin_router.message(ManualOrderStates.waiting_for_service)
+async def process_service(message: Message, state: FSMContext):
+    if message.text in ["🏠 Bosh sahifa", "✖️ Bekor qilish"]:
+        return await cancel_handler(message, state)
+    
+    service = message.text if message.text != "➡️ O'tkazib yuborish" else None
+    await state.update_data(services_name=service)
+    
+    await message.answer("💰 Narxini kiriting:", reply_markup=get_skip_keyboard())
+    await state.set_state(ManualOrderStates.waiting_for_price)
+
+# Price input handler
+
+@admin_router.message(ManualOrderStates.waiting_for_price)
+async def finalize_order(message: Message, state: FSMContext):
+    if message.text in ["🏠 Bosh sahifa", "✖️ Bekor qilish"]:
+        return await cancel_handler(message, state)
+    
+    price_text = message.text
+    price = 0.0
+    if price_text != "➡️ O'tkazib yuborish":
+        try:
+            price = float(price_text.replace(" ", ""))
+        except:
+            await message.answer("⚠️ Narxni raqamda kiriting!")
+            return
+
+    data = await state.get_data()
+    
+    with DBSession() as db:
+        car = db.query(Car).filter(Car.plate_number == data['plate_number']).first()
+        if not car:
+            car = Car(plate_number=data['plate_number'])
+            db.add(car)
+            db.flush()
+
+        washer = db.query(Washer).filter(Washer.full_name.ilike(f"%{data['temp_washer']}%")).first()
+        
         new_order = Order(
-            car_id=car_id,
-            washer_id=washer_id,
+            car_id=car.id,
+            washer_id=washer.id if washer else None,
+            services_name=data.get('services_name'),
+            price=price,
             status=OrderStatus.washing
         )
         db.add(new_order)
         db.commit()
 
-        # 1. Avvalgi inline tugmalarni o'chirib, matnni yangilaymiz
-        await callback.message.edit_text(
-            f"✅ Buyurtma muvaffaqiyatli yaratildi!\n\n"
-            f"🚗 Mashina: {plate}\n"
-            f"🧼 Moykachi: {washer.full_name}\n"
-            f"⏳ Status: Yuvilmoqda..."
-        )
-    
-    # 2. Yangi xabar bilan asosiy menyuni yuboramiz
-    await callback.message.answer(
-        "Asosiy menyuga qaytdingiz:",
+    await message.answer(
+        f"✅ Buyurtma saqlandi!\n\n"
+        f"🚗 Raqam: {data['plate_number']}\n"
+        f"🧼 Moykachi: {data['temp_washer']}\n"
+        f"🛠️ Xizmat: {data.get('services_name') or 'Noma’lum'}\n"
+        f"💰 Narx: {price} so'm", 
         reply_markup=get_admin_main_menu()
     )
-    
     await state.clear()
-    await callback.answer()
 
-# Bekor qilish (Callback orqali)
-@admin_router.callback_query(F.data == "cancel_admin")
-async def cancel_callback(callback: CallbackQuery, state: FSMContext):
+
+# Audio order handlers
+
+
+@admin_router.message(F.voice | F.audio)
+async def handle_audio_order(message: Message, state: FSMContext):
+    processing_msg = await message.answer("🎙 Audio tahlil qilinmoqda...")
+    file_id = message.voice.file_id if message.voice else message.audio.file_id
+    file = await message.bot.get_file(file_id)
+    file_path = f"temp_{file_id}.ogg"
+    
+    try:
+        await message.bot.download_file(file.file_path, file_path)
+        order_data = transcribe_audio_to_order(file_path)
+        
+        plate = order_data.get('plate_number')
+        price = order_data.get('price', 0)
+        washer_name = order_data.get('washer_name')
+        services_name = order_data.get('services_name')
+
+        if not plate:
+            await processing_msg.edit_text("❌ Raqamni aniqlab bo'lmadi. Iltimos, qaytadan aniqroq gapiring.")
+            return
+
+        await state.update_data(
+            temp_plate=str(plate).upper(),
+            temp_price=price,
+            temp_washer=washer_name,
+            services_name=services_name
+        )
+
+        await processing_msg.edit_text(
+            f"📋 **Ma'lumotlar to'g'rimi?**\n\n"
+            f"🚘 Mashina: `{plate}`\n"
+            f"🧼 Ishchi: `{washer_name}`\n"
+            f"🛎 Xizmat turi: `{services_name}`\n"
+            f"💰 Narxi: `{price}` so'm\n\n"
+            f"Tasdiqlaysizmi?",
+            reply_markup=get_audio_confirm_keyboard(),
+            parse_mode="Markdown"
+        )
+        await state.set_state(AudioOrderStates.confirming)
+
+    except Exception as e:
+        await processing_msg.edit_text(f"Xatolik bor qayta yuboring.")
+    finally:
+        if os.path.exists(file_path):
+            await asyncio.sleep(1)
+            try: os.remove(file_path)
+            except: pass
+
+# Audio order confirmation handlers
+
+@admin_router.callback_query(AudioOrderStates.confirming, F.data == "confirm_audio_order")
+async def commit_audio_order(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    
+    with DBSession() as db:
+        car = db.query(Car).filter(Car.plate_number == data['temp_plate']).first()
+        if not car:
+            car = Car(plate_number=data['temp_plate'])
+            db.add(car)
+            db.flush()
+
+        owner = car.owners[0] if car.owners else None
+
+        washer = db.query(Washer).filter(Washer.full_name.ilike(f"%{data['temp_washer']}%")).first()
+        if not washer:
+            await callback.message.edit_text(f"❌ '{data['temp_washer']}' topilmadi.")
+            await state.clear()
+            return
+
+        new_order = Order(
+            car_id=car.id,
+            user_id=owner.id if owner else None, 
+
+            washer_id=washer.id,
+            price=float(data['temp_price']) if data['temp_price'] else 0.0,
+            status=OrderStatus.washing,
+            services_name=data['services_name'] if data.get('services_name') else None
+        )
+        db.add(new_order)
+        db.commit()
+
+    res_msg = "✅ Buyurtma saqlandi!"
+    
+    await callback.message.edit_text(res_msg)
+    await callback.message.answer("Asosiy menyu:", reply_markup=get_admin_main_menu())
     await state.clear()
-    await callback.message.edit_text("Amal bekor qilindi. ❌")
+
+# Retry audio order handler
+
+@admin_router.callback_query(AudioOrderStates.confirming, F.data == "retry_audio_order")
+async def retry_audio_order(callback: CallbackQuery, state: FSMContext):
+    await state.clear()
+    await callback.message.edit_text("🔄 Qayta yuborish tanlandi. Iltimos, yangi audio yuboring:")
     await callback.answer()

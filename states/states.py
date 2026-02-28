@@ -10,5 +10,12 @@ class AddCarStates(StatesGroup):
 # Admin manual order state
 
 class ManualOrderStates(StatesGroup):
-    waiting_for_plate = State()   
+    waiting_for_plate = State() 
     selecting_washer = State()    
+    waiting_for_service = State() 
+    waiting_for_price = State()  
+
+# Admin confirm order state
+
+class AudioOrderStates(StatesGroup):
+    confirming = State()
