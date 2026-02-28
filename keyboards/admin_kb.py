@@ -48,7 +48,7 @@ def get_services_reply_keyboard(services):
     if row: buttons.append(row)
     
     buttons.append([KeyboardButton(text="➡️ O'tkazib yuborish")])
-    buttons.append([KeyboardButton(text="🏠 Bosh sahifa")])
+    buttons.append([KeyboardButton(text="✖️ Bekor qilish")])
     return ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
 
 
