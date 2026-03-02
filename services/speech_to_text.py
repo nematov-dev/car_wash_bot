@@ -8,7 +8,7 @@ genai.configure(api_key="AIzaSyCyStrvMC9Uzb9QfUxWHdIj3Q8tFQ5yofw")
 
 def transcribe_audio_to_order(audio_file_path):
     # 1. To'g'ri model nomini ishlatish
-    model = genai.GenerativeModel("gemini-1.5-flash")
+    model = genai.GenerativeModel("gemini-2.5-flash")
     
     # 2. Audio faylni yuklash
     sample_file = genai.upload_file(path=audio_file_path)
