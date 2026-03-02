@@ -233,17 +233,23 @@ async def finalize_order(message: Message, state: FSMContext):
 
     data = await state.get_data()
     
-    with DBSession() as db:
+    with SessionLocal() as db:
         car = db.query(Car).filter(Car.plate_number == data['plate_number']).first()
         if not car:
             car = Car(plate_number=data['plate_number'])
             db.add(car)
             db.flush()
 
+        owner_id = car.user_id if hasattr(car, 'user_id') else None
+        
+        if not owner_id and hasattr(car, 'owners') and car.owners:
+            owner_id = car.owners[0].id
+
         washer = db.query(Washer).filter(Washer.full_name.ilike(f"%{data['temp_washer']}%")).first()
         
         new_order = Order(
             car_id=car.id,
+            user_id=owner_id,  
             washer_id=washer.id if washer else None,
             services_name=data.get('services_name'),
             price=price,
@@ -251,16 +257,6 @@ async def finalize_order(message: Message, state: FSMContext):
         )
         db.add(new_order)
         db.commit()
-
-    await message.answer(
-        f"✅ Buyurtma saqlandi!\n\n"
-        f"🚗 Raqam: {data['plate_number']}\n"
-        f"🧼 Moykachi: {data['temp_washer']}\n"
-        f"🛠️ Xizmat: {data.get('services_name') or 'Noma’lum'}\n"
-        f"💰 Narx: {price} so'm", 
-        reply_markup=get_admin_main_menu()
-    )
-    await state.clear()
 
 
 # Audio order handlers
