@@ -18,6 +18,6 @@ class AdminCheckMiddleware(BaseMiddleware):
         with DBSession() as db:
             user = db.query(User).filter(User.telegram_id == user_id).first()
             
-            if user and user.role == UserRole.ADMIN:
+            if user and user.role == UserRole.admin:
                 return await handler(event, data)
         return
