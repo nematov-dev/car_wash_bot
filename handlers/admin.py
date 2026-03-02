@@ -281,68 +281,52 @@ async def finalize_order(message: Message, state: FSMContext):
         print(f"DATABASE ERROR: {e}")
         await message.answer("❌ Xatolik yuz berdi. Buyurtma saqlanmadi.")
 
-from aiogram import F
-from aiogram.types import ContentType
 
-@admin_router.message(F.content_type == ContentType.VOICE)
+# Audio Order
+
+@admin_router.message(F.voice, StateFilter(None))
 async def process_audio_order(message: Message, state: FSMContext):
-    # 1. Audio faylni yuklab olish va matnga o'girish
-    status_msg = await message.answer("🎧 Audio tahlil qilinmoqda, iltimos kuting...")
-    
-    # Audio fayl ID sini olish
-    voice = message.voice
-    file_id = voice.file_id
-    file = await message.bot.get_file(file_id)
-    file_path = file.file_path
-    
-    # Faylni serverga vaqtincha saqlash
-    audio_path = f"temp_{file_id}.ogg"
-    await message.bot.download_file(file_path, audio_path)
+    import tempfile
 
-    try:
-        # services.speech_to_text ichidagi funksiyani chaqirish
-        # Bu funksiya {'plate': '...', 'washer': '...', 'price': '...', 'service': '...'} qaytarishi kerak
-        order_details = await transcribe_audio_to_order(audio_path)
-        
-        if not order_details:
-            await status_msg.edit_text("❌ Audiodan ma'lumotlarni ajratib bo'lmadi. Iltimos, aniqroq gapiring.")
-            return
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".ogg") as tmp:
+        file_path = tmp.name
 
-        # Ma'lumotlarni vaqtincha saqlash
-        await state.update_data(
-            temp_plate=order_details.get('plate'),
-            temp_washer=order_details.get('washer'),
-            temp_price=order_details.get('price'),
-            services_name=order_details.get('service')
-        )
+    await message.bot.download(message.voice.file_id, destination=file_path)
 
-        # Tasdiqlash uchun xabar tayyorlash
-        confirmation_text = (
-            f"🎙 <b>Audio buyurtma aniqlandi:</b>\n\n"
-            f"🚗 Raqam: <code>{order_details.get('plate')}</code>\n"
-            f"🧼 Moykachi: {order_details.get('washer')}\n"
-            f"🛠 Xizmat: {order_details.get('service') or 'Noma’lum'}\n"
-            f"💰 Narx: {order_details.get('price')} so'm\n\n"
-            f"Ma'lumotlar to'g'rimi?"
-        )
+    await message.answer("🎧 Audio qabul qilindi, tahlil qilinmoqda...")
 
-        await status_msg.delete()
-        await message.answer(
-            confirmation_text, 
-            reply_markup=get_audio_confirm_keyboard(),
-            parse_mode="HTML"
-        )
-        await state.set_state(AudioOrderStates.confirming)
+    from app.utils.speech_to_text import transcribe_audio_to_order
 
-    except Exception as e:
-        print(f"AUDIO ERROR: {e}")
-        await status_msg.edit_text("❌ Audioni qayta ishlashda xatolik yuz berdi.")
-    
-    finally:
-        # Vaqtinchalik faylni o'chirish
-        if os.path.exists(audio_path):
-            os.remove(audio_path)
-            
+    result = await transcribe_audio_to_order(file_path)
+
+    if not result:
+        await message.answer("❌ Audio tahlil qilinmadi.")
+        return
+
+    # FSM ga vaqtinchalik saqlaymiz
+    await state.update_data(
+        temp_plate=result.get("plate_number"),
+        temp_price=result.get("price"),
+        temp_washer=result.get("washer_name"),
+        services_name=result.get("services_name")
+    )
+
+    text = (
+        "📋 <b>Buyurtma ma'lumotlari:</b>\n\n"
+        f"🚘 Raqam: {result.get('plate_number')}\n"
+        f"👷 Yuvuvchi: {result.get('washer_name')}\n"
+        f"💰 Narx: {result.get('price')}\n"
+        f"🧼 Xizmat: {result.get('services_name')}\n\n"
+        "Tasdiqlaysizmi?"
+    )
+
+    await state.set_state(AudioOrderStates.confirming)
+
+    await message.answer(
+        text,
+        reply_markup=get_audio_confirm_keyboard(),
+        parse_mode="HTML"
+    )
 
 # Audio order confirmation handlers
 
