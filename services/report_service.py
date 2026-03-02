@@ -1,4 +1,5 @@
 import uuid
+import pytz
 from openpyxl import Workbook
 from openpyxl.styles import Font
 from datetime import datetime
@@ -6,6 +7,14 @@ from sqlalchemy import and_
 from database.models import Order
 from database.session import SessionLocal
 
+def get_uzb_time(dt):
+    """Vaqtni majburiy ravishda Toshkent vaqtiga o'tkazish"""
+    if dt is None:
+        return None
+    uzb_tz = pytz.timezone('Asia/Tashkent')
+    if dt.tzinfo is None:
+        return pytz.utc.localize(dt).astimezone(uzb_tz)
+    return dt.astimezone(uzb_tz)
 
 def generate_range_report(start_date, end_date):
     db = SessionLocal()
@@ -29,7 +38,9 @@ def generate_range_report(start_date, end_date):
         total = 0
 
         for order in orders:
-            order_day = order.created_at.date()
+            # Har bir order vaqtini Toshkent vaqtiga o'giramiz
+            order_time = get_uzb_time(order.created_at)
+            order_day = order_time.date()
 
             if current_day != order_day:
                 if current_day is not None:
@@ -54,7 +65,7 @@ def generate_range_report(start_date, end_date):
                 order.services_name or "",
                 price,
                 order.washer.full_name if order.washer else "",
-                order.created_at.strftime("%H:%M")
+                order_time.strftime("%H:%M")
             ])
 
         if current_day is not None:
@@ -70,7 +81,6 @@ def generate_range_report(start_date, end_date):
 
     finally:
         db.close()
-
 
 def generate_monthly_report(year: int, month: int):
     db = SessionLocal()
@@ -100,7 +110,8 @@ def generate_monthly_report(year: int, month: int):
         monthly_total = 0
 
         for order in orders:
-            order_day = order.created_at.date()
+            order_time = get_uzb_time(order.created_at)
+            order_day = order_time.date()
 
             if current_day != order_day:
                 if current_day is not None:
@@ -125,7 +136,7 @@ def generate_monthly_report(year: int, month: int):
                 order.services_name or "",
                 price,
                 order.washer.full_name if order.washer else "",
-                order.created_at.strftime("%H:%M")
+                order_time.strftime("%H:%M")
             ])
 
         if current_day is not None:

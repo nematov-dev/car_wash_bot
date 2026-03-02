@@ -309,7 +309,8 @@ async def commit_audio_order(callback: CallbackQuery, state: FSMContext):
             washer_id=washer.id,
             price=float(data['temp_price']) if data['temp_price'] else 0.0,
             status=OrderStatus.washing,
-            services_name=data['services_name'] if data.get('services_name') else None
+            services_name=data['services_name'] if data.get('services_name') else None,
+            created_at=get_uzb_now()
         )
         db.add(new_order)
         db.commit()
