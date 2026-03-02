@@ -1,5 +1,8 @@
 import os, asyncio
 from datetime import datetime, timedelta
+from sqlalchemy import update
+from sqlalchemy.orm import joinedload
+from services.timezone import get_uzb_now
 
 from aiogram import Router, F
 from aiogram.filters import StateFilter
@@ -24,7 +27,8 @@ from keyboards.admin_kb import (
     get_statistics_keyboard,
     workers_crud,
     admins_crud,
-    services_crud
+    services_crud,
+    get_active_orders_keyboard
 )
 from states.states import ManualOrderStates, ReportStates,AdminStates
 from services.speech_to_text import transcribe_audio_to_order
@@ -64,6 +68,92 @@ async def cancel_callback(callback: CallbackQuery, state: FSMContext):
 @admin_router.message(F.text == "⬅️ Admin panel")
 async def admin_panel_main(message: Message):
     await message.answer("Asosiy admin panel menyusi:", reply_markup=get_admin_panel_keyboard())
+
+# Order done
+
+@admin_router.message(F.text == "🟢 Buyurtma bajarildi")
+async def show_active_orders(message: Message):
+    with SessionLocal() as db:
+        active_orders = (
+            db.query(Order)
+            .options(joinedload(Order.car))
+            .filter(Order.status == OrderStatus.washing)
+            .all()
+        )
+
+    if not active_orders:
+        await message.answer(text="ℹ️ Hozirda yuvilayotgan mashinalar mavjud emas.")
+        return
+
+    from keyboards.admin_kb import get_active_orders_keyboard
+    markup = get_active_orders_keyboard(active_orders)
+    
+    await message.answer(
+        text="<b>🟢 Bajarilgan mashinani tanlang:</b>\n\nTugmani bossangiz, buyurtma yakunlanadi va egasiga xabar yuboriladi.",
+        reply_markup=markup,
+        parse_mode="HTML"
+    )
+
+@admin_router.callback_query(F.data.startswith("finish_order_"))
+async def process_finish_order(call: CallbackQuery):
+    order_id = int(call.data.split("_")[2])
+    
+    with SessionLocal() as db:
+        order = db.query(Order).options(
+            joinedload(Order.car), 
+            joinedload(Order.user) 
+        ).filter(Order.id == order_id).first()
+        
+        if order:
+            plate = order.car.plate_number
+            order.status = OrderStatus.done
+            order.completed_at = get_uzb_now()
+            
+            if order.user and order.user.telegram_id:
+                try:
+                    await call.bot.send_message(
+                        chat_id=order.user.telegram_id,
+                        text=f"✨ <b>Xushxabar!</b>\n\nSizning <b>{plate}</b> raqamli mashinangiz tayyor. Uni olib ketishingiz mumkin! ✅",
+                        parse_mode="HTML"
+                    )
+                except Exception as e:
+                    print(f"Userga xabar yuborishda xatolik: {e}")
+
+            db.commit()
+            await call.message.edit_text(text=f"✅ <b>{plate}</b> yakunlandi va egasiga xabar yuborildi.", parse_mode="HTML")
+        else:
+            await call.answer(text="⚠️ Buyurtma topilmadi.")
+    await call.answer()
+
+@admin_router.callback_query(F.data == "finish_all_orders")
+async def process_finish_all_orders(call: CallbackQuery):
+    with SessionLocal() as db:
+        active_orders = db.query(Order).options(joinedload(Order.user), joinedload(Order.car)).filter(
+            Order.status == OrderStatus.washing
+        ).all()
+
+        if not active_orders:
+            await call.answer("Yuvilayotgan mashinalar qolmagan.")
+            return
+
+        count = 0
+        for order in active_orders:
+            order.status = OrderStatus.done
+            order.completed_at = get_uzb_now()
+            
+            if order.user and order.user.telegram_id:
+                try:
+                    await call.bot.send_message(
+                        chat_id=order.user.telegram_id,
+                        text=f"✅ <b>Mashinangiz tayyor!</b>\n{order.car.plate_number} raqamli mashinangiz olib ketishingiz mumkin.",
+                        parse_mode="HTML"
+                    )
+                except: pass
+            count += 1
+        
+        db.commit()
+        await call.message.edit_text(text=f"🏁 Jami {count} ta buyurtma yakunlandi.")
+    await call.answer()
 
 # Manual order process handlers
 

@@ -6,12 +6,29 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 def get_admin_main_menu():
     keyboard = ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="📥 Buyurtma qabul qilish (qo'lda)")],
+            [KeyboardButton(text="📥 Buyurtma qabul qilish (qo'lda)"),KeyboardButton(text="🟢 Buyurtma bajarildi")],
             [KeyboardButton(text="📊 Hisobot"),KeyboardButton(text="⬅️ Admin panel")],
         ],
         resize_keyboard=True
     )
     return keyboard
+
+
+
+def get_active_orders_keyboard(active_orders):
+    buttons = []
+    for order in active_orders:
+        buttons.append([
+            InlineKeyboardButton(
+                text=f"🚗 {order.car.plate_number} (Yakunlash)", 
+                callback_data=f"finish_order_{order.id}"
+            )
+        ])
+    
+    if active_orders:
+        buttons.append([InlineKeyboardButton(text="✅ Hammasini yakunlash", callback_data="finish_all_orders")])
+    
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
 def get_washers_inline_keyboard(washers):
