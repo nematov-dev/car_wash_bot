@@ -282,11 +282,12 @@ async def finalize_order(message: Message, state: FSMContext):
         await message.answer("❌ Xatolik yuz berdi. Buyurtma saqlanmadi.")
 
 
+import tempfile
+
 # Audio Order
 
-@admin_router.message(F.voice, StateFilter(None))
+@admin_router.message(F.voice)
 async def process_audio_order(message: Message, state: FSMContext):
-    import tempfile
 
     with tempfile.NamedTemporaryFile(delete=False, suffix=".ogg") as tmp:
         file_path = tmp.name
