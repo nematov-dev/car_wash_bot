@@ -295,7 +295,6 @@ async def process_audio_order(message: Message, state: FSMContext):
 
     await message.answer("🎧 Audio qabul qilindi, tahlil qilinmoqda...")
 
-    from app.utils.speech_to_text import transcribe_audio_to_order
 
     result = await transcribe_audio_to_order(file_path)
 
