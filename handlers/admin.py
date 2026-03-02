@@ -2,10 +2,11 @@ import os, asyncio
 from datetime import datetime, timedelta
 
 from aiogram import Router, F
+from aiogram.filters import StateFilter
 from aiogram.types import Message, CallbackQuery, FSInputFile
 from aiogram.fsm.context import FSMContext
 from loader import DBSession
-from database.models import Car, Washer, Order, OrderStatus
+from database.models import Car, Washer, Order, OrderStatus, User,Service,Washer,UserRole
 from database.models import Service
 
 
@@ -17,12 +18,20 @@ from keyboards.admin_kb import (
     get_services_reply_keyboard,
     get_skip_keyboard,
     get_audio_confirm_keyboard,
-    get_report_keyboard
+    get_report_keyboard,
+    get_admin_panel_keyboard,
+    get_broadcast_keyboard,
+    get_statistics_keyboard,
+    workers_crud,
+    admins_crud,
+    services_crud
 )
-from states.states import ManualOrderStates, ReportStates
+from states.states import ManualOrderStates, ReportStates,AdminStates
 from services.speech_to_text import transcribe_audio_to_order
 from middlewares.admin_check import AdminCheckMiddleware
 from services.report_service import generate_monthly_report,generate_range_report
+from database.session import SessionLocal
+
 
 
 admin_router = Router()
@@ -54,7 +63,7 @@ async def cancel_callback(callback: CallbackQuery, state: FSMContext):
 
 @admin_router.message(F.text == "⬅️ Admin panel")
 async def admin_panel_main(message: Message):
-    await message.answer("Asosiy admin panel menyusi:", reply_markup=get_admin_main_menu())
+    await message.answer("Asosiy admin panel menyusi:", reply_markup=get_admin_panel_keyboard())
 
 # Manual order process handlers
 
@@ -373,3 +382,246 @@ async def get_end_date(message: Message, state: FSMContext):
             "❌ Format noto‘g‘ri. Masalan: 2026-03-10",
             reply_markup=admin_cancel_kb()
         )
+
+
+# Send Message 
+
+@admin_router.message(F.text == "✉️ Xabar yuborish")
+async def broadcast_start_msg(message: Message, state: FSMContext):
+    await state.set_state(AdminStates.waiting_for_broadcast_text)
+    await message.answer(
+        "📝 <b>Xabaringizni yuboring:</b>\n\n"
+        "Siz yuborgan har qanday xabar (matn, rasm, video) barcha foydalanuvchilarga yetkaziladi.",
+        reply_markup=admin_cancel_kb(),
+        parse_mode="HTML"
+    )
+
+
+@admin_router.message(AdminStates.waiting_for_broadcast_text)
+async def process_broadcast_sending(message: Message, state: FSMContext):
+    # Bekor qilishni tekshirish
+    if message.text in ["✖️ Bekor qilish", "🏠 Bosh sahifa"]:
+        await state.clear()
+        await message.answer("Amal bekor qilindi.", reply_markup=get_admin_panel_keyboard())
+        return
+
+    # Foydalanuvchilarni bazadan olish
+    with SessionLocal() as db:
+        users = db.query(User).all()
+    
+    if not users:
+        await message.answer("Bazada foydalanuvchilar topilmadi.")
+        await state.clear()
+        return
+
+    status_msg = await message.answer(f"⏳ Xabar {len(users)} ta foydalanuvchiga yuborilmoqda...")
+    
+    count = 0
+    error_count = 0
+
+    for user in users:
+        try:
+            await message.copy_to(chat_id=int(user.telegram_id))
+            count += 1
+            await asyncio.sleep(0.05)
+        except Exception:
+            error_count += 1
+
+    await status_msg.edit_text(
+        f"✅ <b>Yuborish yakunlandi!</b>\n\n"
+        f"👤 Muvaffaqiyatli: <code>{count}</code>\n"
+        f"❌ Xatolik: <code>{error_count}</code>",
+        parse_mode="HTML"
+    )
+    await message.answer("Asosiy admin panel:", reply_markup=get_admin_panel_keyboard())
+    await state.clear()
+
+# Stat
+
+@admin_router.message(F.text == "📊 Statistika")
+async def show_admin_statistics(message: Message):
+    with SessionLocal() as db:
+        total_users = db.query(User).count()
+        
+        admin_count = db.query(User).filter(User.role == UserRole.admin.value).count()
+        
+        total_workers = db.query(Washer).count()
+        
+        active_workers = db.query(Washer).filter(Washer.active == True).count()
+        
+        total_services = db.query(Service).count()
+
+    stats_text = (
+        "<b>📊 Tizim statistikasi:</b>\n\n"
+        f"👤 <b>Foydalanuvchilar:</b> {total_users} ta\n"
+        f"🛡 <b>Adminlar:</b> {admin_count+1} ta\n\n"
+        f"👷 <b>Ishchilar:</b> {total_workers} ta\n"
+        f"✅ <b>Shundan faol:</b> {active_workers} ta\n\n"
+        f"🛠 <b>Xizmatlar turi:</b> {total_services} ta"
+    )
+
+    await message.answer(stats_text, parse_mode="HTML", reply_markup=get_admin_panel_keyboard())
+
+
+# Admin panel management handlers (workers, admins, services) would go here, following similar patterns of state management and database interactions.
+
+# VIEW HANDLERS
+
+@admin_router.message(F.text == "👷 Ishchilar")
+async def show_workers(message: Message):
+    with SessionLocal() as db:
+        workers = db.query(Washer).all()
+    
+    if not workers:
+        await message.answer("Hozircha ishchi mavjud emas.", reply_markup=workers_crud())
+        return
+
+    text = "<b>👷 Ishchilar ro‘yxati:</b>\n\n"
+    for w in workers:
+        text += f"ID: <code>{w.id}</code> | {w.full_name}\n"
+    
+    await message.answer(text, reply_markup=workers_crud(), parse_mode="HTML")
+
+@admin_router.message(F.text == "🛡️ Adminlar")
+async def show_admins(message: Message):
+    with SessionLocal() as db:
+        admins = db.query(User).filter(User.role == UserRole.admin.value).all()
+    
+    if not admins:
+        await message.answer("Hozircha adminlar mavjud emas.", reply_markup=admins_crud())
+        return
+
+    text = "<b>🛡️ Tizim adminlari ro‘yxati:</b>\n\n"
+    for a in admins:
+        text += f"ID: <code>{a.id}</code> | {a.full_name} (TG: <code>{a.telegram_id}</code>)\n"
+    
+    await message.answer(text, reply_markup=admins_crud(), parse_mode="HTML")
+
+@admin_router.message(F.text == "🛠 Xizmatlar")
+async def show_services(message: Message):
+    with SessionLocal() as db:
+        services = db.query(Service).all()
+    
+    if not services:
+        await message.answer("Hozircha xizmatlar mavjud emas.", reply_markup=services_crud())
+        return
+
+    text = "<b>🛠 Mavjud xizmatlar va narxlar:</b>\n\n"
+    for s in services:
+        status = "✅" if s.active else "❌"
+        text += f"ID: <code>{s.id}</code> | {s.name} - {s.price} so'm {status}\n"
+    
+    await message.answer(text, reply_markup=services_crud(), parse_mode="HTML")
+
+
+# CALLBACK START HANDLERS
+
+@admin_router.callback_query(F.data.in_(["add_worker", "add_admin", "add_service", "delete_worker", "delete_admin", "delete_service"]))
+async def admin_crud_callback(call: CallbackQuery, state: FSMContext):
+    data = call.data
+    
+    if data == "add_worker":
+        await state.set_state(AdminStates.adding_worker)
+        await call.message.answer("📝 Yangi ishchi ismini kiriting:", reply_markup=admin_cancel_kb())
+    
+    elif data == "delete_worker":
+        await state.set_state(AdminStates.deleting_worker)
+        await call.message.answer("🗑 O'chiriladigan ishchi ID sini kiriting:", reply_markup=admin_cancel_kb())
+    
+    elif data == "add_admin":
+        await state.set_state(AdminStates.adding_admin_name)
+        await call.message.answer("📝 Yangi admin ismini kiriting:", reply_markup=admin_cancel_kb())
+    
+    elif data == "delete_admin":
+        await state.set_state(AdminStates.deleting_admin)
+        await call.message.answer("🗑 O'chiriladigan admin ID sini kiriting:", reply_markup=admin_cancel_kb())
+        
+    elif data == "add_service":
+        await state.set_state(AdminStates.adding_service_name)
+        await call.message.answer("📝 Xizmat nomini kiriting:", reply_markup=admin_cancel_kb())
+
+    elif data == "delete_service":
+        await state.set_state(AdminStates.deleting_service)
+        await call.message.answer("🗑 O'chiriladigan xizmat ID sini kiriting:", reply_markup=admin_cancel_kb())
+
+    await call.answer()
+
+
+# GLOBAL FSM HANDLER
+
+@admin_router.message(StateFilter("*"))
+async def global_fsm_handler(message: Message, state: FSMContext):
+    current_state = await state.get_state()
+
+    if current_state is None:
+        return
+
+    text = message.text.strip()
+
+    if text in ["✖️ Bekor qilish", "🏠 Bosh sahifa"]:
+        await state.clear()
+        await message.answer("Amal bekor qilindi.", reply_markup=get_admin_panel_keyboard())
+        return
+
+    with SessionLocal() as db:
+        # WORKERS 
+        if current_state == AdminStates.adding_worker.state:
+            new_worker = Washer(full_name=text, active=True)
+            db.add(new_worker)
+            db.commit()
+            await message.answer(f"✅ Ishchi '{text}' qo‘shildi.", reply_markup=get_admin_panel_keyboard())
+            await state.clear()
+
+        elif current_state == AdminStates.deleting_worker.state:
+            try:
+                w_id = int(text)
+                obj = db.query(Washer).get(w_id)
+                if obj:
+                    db.delete(obj); db.commit()
+                    await message.answer(f"✅ Ishchi o'chirildi.", reply_markup=get_admin_panel_keyboard())
+                    await state.clear()
+                else: await message.answer("❌ ID topilmadi.")
+            except ValueError: await message.answer("❌ Raqam kiriting.")
+
+        # ADMINS 
+        elif current_state == AdminStates.adding_admin_name.state:
+            await state.update_data(admin_name=text)
+            await state.set_state(AdminStates.adding_admin_telegram)
+            await message.answer(f"🔢 {text} uchun Telegram ID sini kiriting:")
+
+        elif current_state == AdminStates.adding_admin_telegram.state:
+            if not text.isdigit():
+                await message.answer("❌ Telegram ID faqat raqam bo'ladi!")
+                return
+            data = await state.get_data()
+            new_admin = User(full_name=data['admin_name'], telegram_id=int(text), role=UserRole.admin.value)
+            db.add(new_admin); db.commit()
+            await message.answer("✅ Admin qo'shildi.", reply_markup=get_admin_panel_keyboard())
+            await state.clear()
+
+        # SERVICES 
+        elif current_state == AdminStates.adding_service_name.state:
+            await state.update_data(s_name=text)
+            await state.set_state(AdminStates.adding_service_price)
+            await message.answer(f"💰 '{text}' narxini kiriting:")
+
+        elif current_state == AdminStates.adding_service_price.state:
+            try:
+                price = float(text.replace(" ", ""))
+                data = await state.get_data()
+                new_s = Service(name=data['s_name'], price=price)
+                db.add(new_s); db.commit()
+                await message.answer(f"✅ Xizmat qo'shildi.", reply_markup=get_admin_panel_keyboard())
+                await state.clear()
+            except ValueError: await message.answer("❌ Narxni raqamda kiriting.")
+            
+        elif current_state == AdminStates.deleting_service.state:
+            try:
+                s_id = int(text)
+                obj = db.query(Service).get(s_id)
+                if obj:
+                    db.delete(obj); db.commit()
+                    await message.answer(f"✅ Xizmat o'chirildi.", reply_markup=get_admin_panel_keyboard())
+                    await state.clear()
+                else: await message.answer("❌ ID topilmadi.")
+            except ValueError: await message.answer("❌ Raqam kiriting.")

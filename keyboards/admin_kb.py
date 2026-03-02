@@ -94,3 +94,81 @@ def get_report_keyboard():
         ],
         resize_keyboard=True
     )
+
+
+# Admin panel reply keyboard
+
+def get_admin_panel_keyboard():
+    keyboard = ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="👷 Ishchilar"), KeyboardButton(text="🛡️ Adminlar")],
+            [KeyboardButton(text="🛠 Xizmatlar"), KeyboardButton(text="✉️ Xabar yuborish")],
+            [KeyboardButton(text="📊 Statistika")],
+            [KeyboardButton(text="🏠 Bosh sahifa")]
+        ],
+        resize_keyboard=True
+    )
+    return keyboard
+
+# Workers CRUD
+
+
+def workers_crud():
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="➕ Ishchi qo‘shish", callback_data="add_worker"),
+                InlineKeyboardButton(text="🗑️ Ishchi o‘chirish", callback_data="delete_worker")
+            ]
+        ]
+    )
+    return keyboard
+
+
+# Admins CRUD
+
+def admins_crud():
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="➕ Admin qo‘shish", callback_data="add_admin"),
+                InlineKeyboardButton(text="🗑️ Admin o‘chirish", callback_data="delete_admin")
+            ]
+        ]
+    )
+    return keyboard
+
+
+# Services
+
+def services_crud():
+    buttons = [
+        [
+            InlineKeyboardButton(text="➕ Xizmat qo‘shish", callback_data="add_service"),
+            InlineKeyboardButton(text="🗑 Xizmat o‘chirish", callback_data="delete_service")
+        ]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+# Send Message
+
+def get_broadcast_keyboard():
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="✉️ Hamma userlarga yuborish", callback_data="broadcast_all")],
+            [InlineKeyboardButton(text="⬅️ Orqaga", callback_data="back_admin")]
+        ]
+    )
+    return keyboard
+
+
+# Statistics
+
+def get_statistics_keyboard(user_count, order_count=None):
+    buttons = [
+        [InlineKeyboardButton(text=f"👤 Userlar: {user_count}", callback_data="stat_users")],
+    ]
+    if order_count is not None:
+        buttons.append([InlineKeyboardButton(text=f"🧾 Buyurtmalar: {order_count}", callback_data="stat_orders")])
+    buttons.append([InlineKeyboardButton(text="⬅️ Orqaga", callback_data="back_admin")])
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
