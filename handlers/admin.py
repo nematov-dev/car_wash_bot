@@ -224,90 +224,62 @@ async def finalize_order(message: Message, state: FSMContext):
     
     price_text = message.text
     price = 0.0
+    
     if price_text != "➡️ O'tkazib yuborish":
         try:
-            price = float(price_text.replace(" ", ""))
-        except:
-            await message.answer("⚠️ Narxni raqamda kiriting!")
+            clean_price = "".join(filter(str.isdigit, price_text))
+            if clean_price:
+                price = float(clean_price)
+            else:
+                raise ValueError
+        except ValueError:
+            await message.answer("⚠️ Iltimos, narxni faqat raqamlarda kiriting (masalan: 90000):")
             return
 
     data = await state.get_data()
     
-    with SessionLocal() as db:
-        car = db.query(Car).filter(Car.plate_number == data['plate_number']).first()
-        if not car:
-            car = Car(plate_number=data['plate_number'])
-            db.add(car)
-            db.flush()
-
-        owner_id = car.user_id if hasattr(car, 'user_id') else None
-        
-        if not owner_id and hasattr(car, 'owners') and car.owners:
-            owner_id = car.owners[0].id
-
-        washer = db.query(Washer).filter(Washer.full_name.ilike(f"%{data['temp_washer']}%")).first()
-        
-        new_order = Order(
-            car_id=car.id,
-            user_id=owner_id,  
-            washer_id=washer.id if washer else None,
-            services_name=data.get('services_name'),
-            price=price,
-            status=OrderStatus.washing
-        )
-        db.add(new_order)
-        db.commit()
-
-
-# Audio order handlers
-
-
-@admin_router.message(F.voice | F.audio)
-async def handle_audio_order(message: Message, state: FSMContext):
-    processing_msg = await message.answer("🎙 Audio tahlil qilinmoqda...")
-    file_id = message.voice.file_id if message.voice else message.audio.file_id
-    file = await message.bot.get_file(file_id)
-    file_path = f"temp_{file_id}.ogg"
-    
     try:
-        await message.bot.download_file(file.file_path, file_path)
-        order_data = transcribe_audio_to_order(file_path)
-        
-        plate = order_data.get('plate_number')
-        price = order_data.get('price', 0)
-        washer_name = order_data.get('washer_name')
-        services_name = order_data.get('services_name')
+        with SessionLocal() as db:
+            car = db.query(Car).filter(Car.plate_number == data['plate_number']).first()
+            if not car:
+                car = Car(plate_number=data['plate_number'])
+                db.add(car)
+                db.flush()
 
-        if not plate:
-            await processing_msg.edit_text("❌ Raqamni aniqlab bo'lmadi. Iltimos, qaytadan aniqroq gapiring.")
-            return
+            owner_id = None
+            if hasattr(car, 'owners') and car.owners:
+                owner_id = car.owners[0].id
+            elif hasattr(car, 'user_id') and car.user_id:
+                owner_id = car.user_id
 
-        await state.update_data(
-            temp_plate=str(plate).upper(),
-            temp_price=price,
-            temp_washer=washer_name,
-            services_name=services_name
-        )
-
-        await processing_msg.edit_text(
-            f"📋 **Ma'lumotlar to'g'rimi?**\n\n"
-            f"🚘 Mashina: `{plate}`\n"
-            f"🧼 Ishchi: `{washer_name}`\n"
-            f"🛎 Xizmat turi: `{services_name}`\n"
-            f"💰 Narxi: `{price}` so'm\n\n"
-            f"Tasdiqlaysizmi?",
-            reply_markup=get_audio_confirm_keyboard(),
-            parse_mode="Markdown"
-        )
-        await state.set_state(AudioOrderStates.confirming)
+            washer = db.query(Washer).filter(Washer.full_name.ilike(f"%{data['temp_washer']}%")).first()
+            
+            new_order = Order(
+                car_id=car.id,
+                user_id=owner_id, 
+                washer_id=washer.id if washer else None,
+                services_name=data.get('services_name'),
+                price=price,
+                status=OrderStatus.washing,
+                created_at=get_uzb_now()
+            )
+            db.add(new_order)
+            db.commit()
+            
+            await message.answer(
+                f"✅ <b>Buyurtma saqlandi!</b>\n\n"
+                f"🚗 Raqam: <code>{data['plate_number']}</code>\n"
+                f"🧼 Moykachi: {data['temp_washer']}\n"
+                f"🛠️ Xizmat: {data.get('services_name') or 'Noma’lum'}\n"
+                f"💰 Narx: {price:,.0f} so'm".replace(",", " "), 
+                reply_markup=get_admin_main_menu(),
+                parse_mode="HTML"
+            )
+            await state.clear()
 
     except Exception as e:
-        await processing_msg.edit_text(f"Xatolik bor qayta yuboring.")
-    finally:
-        if os.path.exists(file_path):
-            await asyncio.sleep(1)
-            try: os.remove(file_path)
-            except: pass
+        print(f"DATABASE ERROR: {e}")
+        await message.answer("❌ Xatolik yuz berdi. Buyurtma saqlanmadi.")
 
 # Audio order confirmation handlers
 
