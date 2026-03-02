@@ -671,14 +671,14 @@ async def global_fsm_handler(message: Message, state: FSMContext):
 
     with SessionLocal() as db:
         # WORKERS 
-        if  current_state == AdminStates.adding_admin_name:
+        if current_state == AdminStates.adding_worker.state:
             new_worker = Washer(full_name=text, active=True)
             db.add(new_worker)
             db.commit()
             await message.answer(f"✅ Ishchi '{text}' qo‘shildi.", reply_markup=get_admin_panel_keyboard())
             await state.clear()
 
-        elif current_state == AdminStates.deleting_worker:
+        elif current_state == AdminStates.deleting_worker.state:
             try:
                 w_id = int(text)
                 obj = db.query(Washer).get(w_id)
@@ -690,7 +690,7 @@ async def global_fsm_handler(message: Message, state: FSMContext):
             except ValueError: await message.answer("❌ Raqam kiriting.")
 
         # ADMINS 
-
+        
         elif current_state == AdminStates.adding_admin_name:
             await state.update_data(admin_name=text)
             await state.set_state(AdminStates.adding_admin_telegram)
@@ -702,6 +702,12 @@ async def global_fsm_handler(message: Message, state: FSMContext):
                 return
 
             data = await state.get_data()
+
+            # 🔎 Duplicate tekshiruv
+            existing = db.query(User).filter(User.telegram_id == int(text)).first()
+            if existing:
+                await message.answer("❌ Bu Telegram ID allaqachon mavjud.")
+                return
 
             new_admin = User(
                 full_name=data['admin_name'],
