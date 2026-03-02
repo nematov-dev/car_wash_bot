@@ -333,7 +333,7 @@ async def process_audio_order(message: Message, state: FSMContext):
 @admin_router.callback_query(AudioOrderStates.confirming, F.data == "confirm_audio_order")
 async def commit_audio_order(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
-    
+
     with DBSession() as db:
         car = db.query(Car).filter(Car.plate_number == data['temp_plate']).first()
         if not car:
@@ -341,30 +341,30 @@ async def commit_audio_order(callback: CallbackQuery, state: FSMContext):
             db.add(car)
             db.flush()
 
-        owner = car.owners[0] if car.owners else None
+        washer = db.query(Washer).filter(
+            Washer.full_name.ilike(f"%{data['temp_washer']}%")
+        ).first()
 
-        washer = db.query(Washer).filter(Washer.full_name.ilike(f"%{data['temp_washer']}%")).first()
         if not washer:
-            await callback.message.edit_text(f"❌ '{data['temp_washer']}' topilmadi.")
+            await callback.message.edit_text(
+                f"❌ '{data['temp_washer']}' topilmadi."
+            )
             await state.clear()
             return
 
         new_order = Order(
             car_id=car.id,
-            user_id=owner.id if owner else None, 
-
             washer_id=washer.id,
             price=float(data['temp_price']) if data['temp_price'] else 0.0,
             status=OrderStatus.washing,
-            services_name=data['services_name'] if data.get('services_name') else None,
+            services_name=data.get('services_name'),
             created_at=get_uzb_now()
         )
+
         db.add(new_order)
         db.commit()
 
-    res_msg = "✅ Buyurtma saqlandi!"
-    
-    await callback.message.edit_text(res_msg)
+    await callback.message.edit_text("✅ Buyurtma saqlandi!")
     await callback.message.answer("Asosiy menyu:", reply_markup=get_admin_main_menu())
     await state.clear()
 
