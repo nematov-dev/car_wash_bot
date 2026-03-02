@@ -671,14 +671,14 @@ async def global_fsm_handler(message: Message, state: FSMContext):
 
     with SessionLocal() as db:
         # WORKERS 
-        if current_state == AdminStates.adding_worker.state:
+        if  current_state == AdminStates.adding_admin_name:
             new_worker = Washer(full_name=text, active=True)
             db.add(new_worker)
             db.commit()
             await message.answer(f"✅ Ishchi '{text}' qo‘shildi.", reply_markup=get_admin_panel_keyboard())
             await state.clear()
 
-        elif current_state == AdminStates.deleting_worker.state:
+        elif current_state == AdminStates.deleting_worker:
             try:
                 w_id = int(text)
                 obj = db.query(Washer).get(w_id)
@@ -690,18 +690,28 @@ async def global_fsm_handler(message: Message, state: FSMContext):
             except ValueError: await message.answer("❌ Raqam kiriting.")
 
         # ADMINS 
-        elif current_state == AdminStates.adding_admin_name.state:
+
+        elif current_state == AdminStates.adding_admin_name:
             await state.update_data(admin_name=text)
             await state.set_state(AdminStates.adding_admin_telegram)
             await message.answer(f"🔢 {text} uchun Telegram ID sini kiriting:")
 
-        elif current_state == AdminStates.adding_admin_telegram.state:
+        elif current_state == AdminStates.adding_admin_telegram:
             if not text.isdigit():
                 await message.answer("❌ Telegram ID faqat raqam bo'ladi!")
                 return
+
             data = await state.get_data()
-            new_admin = User(full_name=data['admin_name'], telegram_id=int(text), role=UserRole.admin.value)
-            db.add(new_admin); db.commit()
+
+            new_admin = User(
+                full_name=data['admin_name'],
+                telegram_id=int(text),
+                role=UserRole.admin.value
+            )
+
+            db.add(new_admin)
+            db.commit()
+
             await message.answer("✅ Admin qo'shildi.", reply_markup=get_admin_panel_keyboard())
             await state.clear()
 
