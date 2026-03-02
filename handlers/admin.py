@@ -690,7 +690,7 @@ async def global_fsm_handler(message: Message, state: FSMContext):
             except ValueError: await message.answer("❌ Raqam kiriting.")
 
         # ADMINS 
-        
+
         elif current_state == AdminStates.adding_admin_name:
             await state.update_data(admin_name=text)
             await state.set_state(AdminStates.adding_admin_telegram)
@@ -702,12 +702,6 @@ async def global_fsm_handler(message: Message, state: FSMContext):
                 return
 
             data = await state.get_data()
-
-            # 🔎 Duplicate tekshiruv
-            existing = db.query(User).filter(User.telegram_id == int(text)).first()
-            if existing:
-                await message.answer("❌ Bu Telegram ID allaqachon mavjud.")
-                return
 
             new_admin = User(
                 full_name=data['admin_name'],
