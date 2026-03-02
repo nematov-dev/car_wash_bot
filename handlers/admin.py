@@ -297,7 +297,7 @@ async def process_audio_order(message: Message, state: FSMContext):
     await message.answer("🎧 Audio qabul qilindi, tahlil qilinmoqda...")
 
 
-    result = await transcribe_audio_to_order(file_path)
+    result = transcribe_audio_to_order(file_path)
 
     if not result:
         await message.answer("❌ Audio tahlil qilinmadi.")
