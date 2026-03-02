@@ -7,7 +7,7 @@ def get_admin_main_menu():
     keyboard = ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text="📥 Buyurtma qabul qilish (qo'lda)")],
-            [KeyboardButton(text="📊 Statistika"),KeyboardButton(text="⬅️ Admin panel")],
+            [KeyboardButton(text="📊 Hisobot"),KeyboardButton(text="⬅️ Admin panel")],
         ],
         resize_keyboard=True
     )
@@ -83,3 +83,14 @@ def admin_cancel_kb():
         resize_keyboard=True
     )
 
+def get_report_keyboard():
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="📊 1 kunlik")],
+            [KeyboardButton(text="📊 1 haftalik")],
+            [KeyboardButton(text="📊 1 oylik")],
+            [KeyboardButton(text="📅 Sana bo‘yicha")],
+            [KeyboardButton(text="🏠 Bosh sahifa")]
+        ],
+        resize_keyboard=True
+    )

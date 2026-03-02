@@ -1,7 +1,8 @@
 import os, asyncio
+from datetime import datetime, timedelta
 
 from aiogram import Router, F
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message, CallbackQuery, FSInputFile
 from aiogram.fsm.context import FSMContext
 from loader import DBSession
 from database.models import Car, Washer, Order, OrderStatus
@@ -16,10 +17,12 @@ from keyboards.admin_kb import (
     get_services_reply_keyboard,
     get_skip_keyboard,
     get_audio_confirm_keyboard,
+    get_report_keyboard
 )
-from states.states import ManualOrderStates
+from states.states import ManualOrderStates, ReportStates
 from services.speech_to_text import transcribe_audio_to_order
 from middlewares.admin_check import AdminCheckMiddleware
+from services.report_service import generate_monthly_report,generate_range_report
 
 
 admin_router = Router()
@@ -29,15 +32,15 @@ admin_router.callback_query.middleware(AdminCheckMiddleware())
 
 # Cancel handlers
 
-@admin_router.message(F.text == "🏠 Bosh sahifa" or F.text == "✖️ Bekor qilish")
+@admin_router.message(
+    (F.text == "🏠 Bosh sahifa") | (F.text == "✖️ Bekor qilish")
+)
 async def cancel_handler(message: Message, state: FSMContext):
-    current_state = await state.get_state()
-    if current_state is None:
-        await message.answer("Asosiy menyuga qaytdingiz:", reply_markup=get_admin_main_menu())
-        return
-
     await state.clear()
-    await message.answer("Asosiy menyuga qaytdingiz:", reply_markup=get_admin_main_menu())
+    await message.answer(
+        "Asosiy menyuga qaytdingiz:",
+        reply_markup=get_admin_main_menu()
+    )
 
 # Callback query cancel handler
 
@@ -257,3 +260,116 @@ async def retry_audio_order(callback: CallbackQuery, state: FSMContext):
     await state.clear()
     await callback.message.edit_text("🔄 Qayta yuborish tanlandi. Iltimos, yangi audio yuboring:")
     await callback.answer()
+
+
+# Admin stat
+
+@admin_router.message(F.text == "📊 Hisobot")
+async def admin_panel_stat(message: Message):
+    await message.answer("Hisobot:", reply_markup=get_report_keyboard())
+
+# 1 day
+
+@admin_router.message(lambda m: m.text == "📊 1 kunlik")
+async def daily_report(message: Message):
+    today = datetime.now()
+    start = today.replace(hour=0, minute=0, second=0)
+    end = today
+
+    file_name = generate_range_report(start, end)
+
+    try:
+        await message.answer_document(FSInputFile(file_name))
+    finally:
+        if os.path.exists(file_name):
+            os.remove(file_name)
+
+# 1 week
+
+@admin_router.message(lambda m: m.text == "📊 1 haftalik")
+async def weekly_report(message: Message):
+    end = datetime.now()
+    start = end - timedelta(days=7)
+
+    file_name = generate_range_report(start, end)
+
+    try:
+        await message.answer_document(FSInputFile(file_name))
+    finally:
+        if os.path.exists(file_name):
+            os.remove(file_name)
+
+# 1 month
+
+@admin_router.message(lambda m: m.text == "📊 1 oylik")
+async def monthly_report(message: Message):
+    now = datetime.now()
+
+    file_name = generate_monthly_report(now.year, now.month)
+
+    try:
+        await message.answer_document(FSInputFile(file_name))
+    finally:
+        if os.path.exists(file_name):
+            os.remove(file_name)
+
+
+# Custom day
+
+@admin_router.message(lambda m: m.text == "📅 Sana bo‘yicha")
+async def custom_report_start(message: Message, state: FSMContext):
+    await message.answer("Boshlanish sanani kiriting:\nFormat: 2026-03-01 (yil-oy-kun)", reply_markup=admin_cancel_kb())
+    await state.set_state(ReportStates.waiting_for_start)
+
+
+@admin_router.message(ReportStates.waiting_for_start)
+async def get_start_date(message: Message, state: FSMContext):
+    try:
+        start_date = datetime.strptime(message.text.strip(), "%Y-%m-%d")
+        await state.update_data(start_date=start_date)
+
+        await message.answer(
+            "Tugash sanani kiriting:\nFormat: 2026-03-10 (yil-oy-kun)", 
+            reply_markup=admin_cancel_kb()
+        )
+        await state.set_state(ReportStates.waiting_for_end)
+
+    except ValueError:
+        await message.answer(
+            "❌ Format noto‘g‘ri. Masalan: 2026-03-01",
+            reply_markup=admin_cancel_kb()
+        )
+
+
+@admin_router.message(ReportStates.waiting_for_end)
+async def get_end_date(message: Message, state: FSMContext):
+    try:
+        end_date = datetime.strptime(message.text.strip(), "%Y-%m-%d")
+
+        data = await state.get_data()
+        start_date = data.get("start_date")
+
+        if not start_date:
+            await message.answer(
+                "❌ Avval boshlanish sanani kiriting.",
+                reply_markup=admin_cancel_kb()
+            )
+            return
+
+        end_date = end_date.replace(hour=23, minute=59, second=59)
+
+        file_name = generate_range_report(start_date, end_date)
+
+        try:
+            await message.answer_document(FSInputFile(file_name))
+        finally:
+            if os.path.exists(file_name):
+                os.remove(file_name)
+
+        await state.clear()
+
+    except ValueError:
+        await message.answer(
+            "❌ Format noto‘g‘ri. Masalan: 2026-03-10",
+            reply_markup=admin_cancel_kb()
+        )

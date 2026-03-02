@@ -19,3 +19,9 @@ class ManualOrderStates(StatesGroup):
 
 class AudioOrderStates(StatesGroup):
     confirming = State()
+
+# Admin stat
+
+class ReportStates(StatesGroup):
+    waiting_for_start = State()
+    waiting_for_end = State()
