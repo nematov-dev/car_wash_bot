@@ -696,23 +696,44 @@ async def global_fsm_handler(message: Message, state: FSMContext):
             await state.set_state(AdminStates.adding_admin_telegram)
             await message.answer(f"🔢 {text} uchun Telegram ID sini kiriting:")
 
-        elif current_state == AdminStates.adding_admin_telegram:
+        elif current_state == AdminStates.adding_admin_telegram.state:
+
             if not text.isdigit():
                 await message.answer("❌ Telegram ID faqat raqam bo'ladi!")
                 return
 
             data = await state.get_data()
+            telegram_id = int(text)
 
+            existing_user = db.query(User).filter(User.telegram_id == telegram_id).first()
+
+            if existing_user:
+                # Agar allaqachon admin bo‘lsa
+                if existing_user.role == UserRole.admin.value:
+                    await message.answer("❌ Bu foydalanuvchi allaqachon admin.")
+                    await state.clear()
+                    return
+
+                existing_user.role = UserRole.admin.value
+                db.commit()
+
+                await message.answer("✅ Foydalanuvchi admin qilindi.",
+                                    reply_markup=get_admin_panel_keyboard())
+                await state.clear()
+                return
+
+            # Agar umuman mavjud bo‘lmasa → yangi yaratamiz
             new_admin = User(
                 full_name=data['admin_name'],
-                telegram_id=int(text),
+                telegram_id=telegram_id,
                 role=UserRole.admin.value
             )
 
             db.add(new_admin)
             db.commit()
 
-            await message.answer("✅ Admin qo'shildi.", reply_markup=get_admin_panel_keyboard())
+            await message.answer("✅ Yangi admin qo'shildi.",
+                                reply_markup=get_admin_panel_keyboard())
             await state.clear()
 
         # SERVICES 
