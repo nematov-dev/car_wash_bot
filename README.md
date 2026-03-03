@@ -34,8 +34,21 @@ Admin
 
 ADMIN:
 
-<img width="100" height="87" alt="image" src="https://github.com/user-attachments/assets/9a20fd65-b6a9-489b-952f-ea3fcf1f86bd" />
-<img width="100" height="91" alt="image" src="https://github.com/user-attachments/assets/031915ff-dc8e-474f-8d58-47c2b1637bda" />
-<img width="499" height="543" alt="image" src="https://github.com/user-attachments/assets/c481114a-483c-4788-91b9-eec46f8506d5" />
+<table align="center">
+  <tr>
+    <td align="center" width="200">
+      <img src="https://github.com/user-attachments/assets/9a20fd65-b6a9-489b-952f-ea3fcf1f86bd" width="150" alt="Logo 1"/><br />
+      <b>Birinchi qism</b>
+    </td>
+    <td align="center" width="200">
+      <img src="https://github.com/user-attachments/assets/031915ff-dc8e-474f-8d58-47c2b1637bda" width="150" alt="Logo 2"/><br />
+      <b>Ikkinchi qism</b>
+    </td>
+  </tr>
+</table>
 
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/c481114a-483c-4788-91b9-eec46f8506d5" width="500" alt="Asosiy skrinshot"/>
+  <br />
+</p>
 
