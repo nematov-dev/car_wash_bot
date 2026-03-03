@@ -36,19 +36,18 @@ ADMIN:
 
 <table align="center">
   <tr>
-    <td align="center" width="200">
-      <img src="https://github.com/user-attachments/assets/9a20fd65-b6a9-489b-952f-ea3fcf1f86bd" width="150" alt="Logo 1"/><br />
-      <b>Birinchi qism</b>
+    <td align="center" valign="bottom">
+      <img src="https://github.com/user-attachments/assets/9a20fd65-b6a9-489b-952f-ea3fcf1f86bd" width="200"/><br>
+      <sub><b>Audio buyurtma qabul qilish</b></sub>
     </td>
-    <td align="center" width="200">
-      <img src="https://github.com/user-attachments/assets/031915ff-dc8e-474f-8d58-47c2b1637bda" width="150" alt="Logo 2"/><br />
-      <b>Ikkinchi qism</b>
+    <td align="center" valign="bottom">
+      <img src="https://github.com/user-attachments/assets/031915ff-dc8e-474f-8d58-47c2b1637bda" width="200"/><br>
+      <sub><b>Admin panel</b></sub>
+    </td>
+    <td align="center" valign="bottom">
+      <img src="https://github.com/user-attachments/assets/c481114a-483c-4788-91b9-eec46f8506d5" width="230"/><br>
+      <sub><b>Hisobot</b></sub>
     </td>
   </tr>
 </table>
-
-<p align="center">
-  <img src="https://github.com/user-attachments/assets/c481114a-483c-4788-91b9-eec46f8506d5" width="500" alt="Asosiy skrinshot"/>
-  <br />
-</p>
 
