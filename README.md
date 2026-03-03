@@ -1,6 +1,7 @@
 # 🚗 Carwash AI Agent Bot
 
 **Maqsad:**  
+
 Telegram orqali avtomoyka xizmatlarini boshqarish uchun AI agent.
 Loyihaning asosiy vazifasi:
 
@@ -30,4 +31,11 @@ Admin
 - **Psycopg2** – PostgreSQL driver  
 
 ---
+
+ADMIN:
+
+<img width="1003" height="870" alt="image" src="https://github.com/user-attachments/assets/9a20fd65-b6a9-489b-952f-ea3fcf1f86bd" />
+<img width="1000" height="919" alt="image" src="https://github.com/user-attachments/assets/031915ff-dc8e-474f-8d58-47c2b1637bda" />
+<img width="1000" height="919" alt="image" src="https://github.com/user-attachments/assets/0eb94ac1-5d09-4ebb-884f-5c9da40b5f85" />
+
 
