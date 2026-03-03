@@ -1,8 +1,9 @@
 import google.generativeai as genai
 import os
 import json
+from decouple import config
 
-genai.configure(api_key="AIzaSyCyStrvMC9Uzb9QfUxWHdIj3Q8tFQ5yofw")
+genai.configure(api_key=config("GEMINI_API_KEY"))
 
 # Audio to text
 
