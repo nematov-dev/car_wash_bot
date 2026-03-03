@@ -49,3 +49,13 @@ Admin
     </td>
   </tr>
 </table>
+
+<table align="center">
+  <tr>
+    <h2 align="center" >User bo'lim</h2>
+    <td align="center" valign="bottom">
+      <img src="https://github.com/user-attachments/assets/dbfc7a80-1496-4834-853d-016ebad3a182" width="200"/><br>
+    </td>
+    </td>
+  </tr>
+</table>
