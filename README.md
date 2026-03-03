@@ -36,15 +36,15 @@ Admin
   <tr>
     <h2 align="center" >Admin bo'lim</h2>
     <td align="center" valign="bottom">
-      <img src="https://github.com/user-attachments/assets/9a20fd65-b6a9-489b-952f-ea3fcf1f86bd" width="200"/><br>
+      <img src="https://github.com/user-attachments/assets/9a20fd65-b6a9-489b-952f-ea3fcf1f86bd" width="300"/><br>
       <sub><b>Audio buyurtma qabul qilish</b></sub>
     </td>
     <td align="center" valign="bottom">
-      <img src="https://github.com/user-attachments/assets/031915ff-dc8e-474f-8d58-47c2b1637bda" width="200"/><br>
+      <img src="https://github.com/user-attachments/assets/031915ff-dc8e-474f-8d58-47c2b1637bda" width="300"/><br>
       <sub><b>Admin panel</b></sub>
     </td>
     <td align="center" valign="bottom">
-      <img src="https://github.com/user-attachments/assets/c481114a-483c-4788-91b9-eec46f8506d5" width="230"/><br>
+      <img src="https://github.com/user-attachments/assets/c481114a-483c-4788-91b9-eec46f8506d5" width="300"/><br>
       <sub><b>Hisobot</b></sub>
     </td>
   </tr>
@@ -54,7 +54,7 @@ Admin
   <tr>
     <h2 align="center" >User bo'lim</h2>
     <td align="center" valign="bottom">
-      <img src="https://github.com/user-attachments/assets/dbfc7a80-1496-4834-853d-016ebad3a182" width="200"/><br>
+      <img src="https://github.com/user-attachments/assets/dbfc7a80-1496-4834-853d-016ebad3a182" width="300"/><br>
     </td>
     </td>
   </tr>
