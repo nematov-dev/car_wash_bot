@@ -33,8 +33,8 @@ Admin
 ---
 
 <table align="center">
-  <h2 align="center" >Admin</h2>
   <tr>
+    <h2 align="center" >Admin bo'lim</h2>
     <td align="center" valign="bottom">
       <img src="https://github.com/user-attachments/assets/9a20fd65-b6a9-489b-952f-ea3fcf1f86bd" width="200"/><br>
       <sub><b>Audio buyurtma qabul qilish</b></sub>
