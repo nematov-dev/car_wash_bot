@@ -1,7 +1,7 @@
 # 🚗 Carwash AI Agent Bot
 
 **Maqsad:**  
-Telegram orqali avtomoyka xizmatlarini boshqarish uchun AI agent.  
+Telegram orqali avtomoyka xizmatlarini boshqarish uchun AI agent.
 Loyihaning asosiy vazifasi:
 
 User
@@ -12,10 +12,10 @@ User
 - Xizmat ko'rsatuvchi haqida ma'lumot
 
 Admin
-- Audio buyurtmalar
+- Audio orqali buyurtma yaratish.
 - Buyurtma holatini inline knopka orqali o‘zgartirish
-- Service ma’lumotlarini boshqarish (add/update/delete)
-- Adminlarni boshqarish (role) va xabarnomalar yuborish
+- Service , Washer , Admin ma’lumotlarini boshqarish (add/update/delete)
+- Xabarnomalar yuborish
 - Admin uchun statistikani ko‘rsatish (kunlik, haftalik, oylik)  (excel)
 
 ---
